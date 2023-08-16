@@ -18,9 +18,14 @@ export enum PIAForecastData {
 }
 
 export enum MortgagePaymentFrequency {
-  MONTHLY = 12,
-  FORTNIGHTLY = 24,
-  WEEKLY = 48,
+  MONTHLY = '12',
+  FORTNIGHTLY = '24',
+  WEEKLY = '48',
+}
+
+export enum MortgagePaymentType {
+  PRINCIPAL_INTEREST = '1',
+  INTEREST = '2',
 }
 
 export type PIAForecast = {
@@ -40,6 +45,7 @@ export type MortgageSummary = {
   extra_payments?: number;
   payment_frequency: MortgagePaymentFrequency;
   income_generating_years: number[];
+  payment_type?: MortgagePaymentType;
 };
 
 export type MortgageData = {

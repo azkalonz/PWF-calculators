@@ -19,11 +19,15 @@ class Mortgage implements IMortgage {
     this.summary = summary;
   }
 
+  getPaymentFrequency() {
+    return parseInt(this.summary.payment_frequency);
+  }
+
   getNumberOfPayments(includeExtraPayments: boolean = false) {
     if (includeExtraPayments) {
       return Math.round(
         NPER(
-          this.summary.annual_interest_rate / this.summary.payment_frequency,
+          this.summary.annual_interest_rate / this.getPaymentFrequency(),
           this.getPayments() +
             this.getPIAWeeklyCashflow(1) +
             this.summary.client_extra_payments_per_period,
@@ -31,7 +35,7 @@ class Mortgage implements IMortgage {
         )
       );
     } else {
-      return this.summary.term_of_loan_in_years * this.summary.payment_frequency;
+      return this.summary.term_of_loan_in_years * this.getPaymentFrequency();
     }
   }
 
@@ -47,8 +51,8 @@ class Mortgage implements IMortgage {
 
   getPayments() {
     return -PMT(
-      this.summary.annual_interest_rate / this.summary.payment_frequency,
-      this.summary.term_of_loan_in_years * this.summary.payment_frequency,
+      this.summary.annual_interest_rate / this.getPaymentFrequency(),
+      this.summary.term_of_loan_in_years * this.getPaymentFrequency(),
       this.summary.loan_amount
     );
   }
@@ -72,10 +76,7 @@ class Mortgage implements IMortgage {
   }
 
   getInterest(balance: number) {
-    return _.round(
-      (this.summary.annual_interest_rate / this.summary.payment_frequency) * balance,
-      2
-    );
+    return _.round((this.summary.annual_interest_rate / this.getPaymentFrequency()) * balance, 2);
   }
 
   getPrincipal(interest: number) {
