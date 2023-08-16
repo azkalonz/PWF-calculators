@@ -1,17 +1,32 @@
-import { Button, Container, Grid, Input, Select, Table } from '@mantine/core';
+import {
+  Button,
+  Container,
+  Grid,
+  Input,
+  Paper,
+  SegmentedControl,
+  Select,
+  Space,
+  Stack,
+  Table,
+  Title,
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useState } from 'react';
 import { Mortgage } from '../../api';
 import {
+  LoanView,
   MortgageData,
   MortgagePaymentFrequency,
   MortgagePaymentType,
   MortgageSummary,
 } from '../../api/mortgage/types';
 import { dollarFormat } from '../../api/utils/numbers';
+import _ from 'lodash';
 
 export default function App() {
   const [mortgageData, setMortgateData] = useState<Mortgage>();
+  const [loanSummaryView, setLoanSummaryView] = useState<LoanView>(LoanView.WITHOUT_EXTRA_PAYMENTS);
   const form = useForm({
     initialValues: {
       loan_amount: 407000,
@@ -102,26 +117,13 @@ export default function App() {
               <Grid.Col xs={6}>
                 <Input.Wrapper label="Add Extra to your Monthly Loan Repayment">
                   <Input
+                    min={0}
                     {...form.getInputProps('client_extra_payments_per_period')}
                     icon={<>$</>}
                     type="number"
                   />
                 </Input.Wrapper>
               </Grid.Col>
-              {/* <Grid.Col xs={6}>
-                <Input.Wrapper label="Add a Lump Sum Amount of">
-                  <Input {...form.getInputProps('loan_amount')} icon={<>$</>} />
-                </Input.Wrapper>
-              </Grid.Col>
-              <Grid.Col xs={6}>
-                <Input.Wrapper label="Interest Rate">
-                  <Input
-                    {...form.getInputProps('annual_interest_rate')}
-                    rightSection={<>%</>}
-                    type="number"
-                  />
-                </Input.Wrapper>
-              </Grid.Col> */}
               <Grid.Col xs={12}>
                 <Button type="submit" mt="md">
                   Submit
@@ -130,7 +132,88 @@ export default function App() {
             </Grid>
           </form>
         </Grid.Col>
-        <Grid.Col xs={6}>1</Grid.Col>
+        <Grid.Col xs={6}>
+          <Stack>
+            <SegmentedControl
+              color="orange"
+              value={loanSummaryView}
+              onChange={(val) => {
+                setLoanSummaryView(val as LoanView);
+              }}
+              data={[
+                { label: 'Current Loan Payment Scenario', value: LoanView.WITHOUT_EXTRA_PAYMENTS },
+                { label: 'With Extra Payments Scenario', value: LoanView.WITH_EXTRA_PAYMENTS },
+              ]}
+            />
+            {loanSummaryView === LoanView.WITHOUT_EXTRA_PAYMENTS && (
+              <Paper shadow="xs" p="md">
+                <Stack>
+                  <Title order={6}>Monthly Payments</Title>
+                  <Title order={1}>{dollarFormat.format(mortgageData?.getPayments() || 0)}</Title>
+                  <Space />
+                  <Title order={6}>Number of Payments</Title>
+                  <Title order={1}>{mortgageData?.getNumberOfPayments() || 0}</Title>
+                  <Space />
+                  <Title order={6}>Extra Payments</Title>
+                  <Title order={1}>{dollarFormat.format(0)}</Title>
+                  <Space />
+                  <Title order={6}>Total Payments</Title>
+                  <Title order={1}>
+                    {dollarFormat.format(
+                      (mortgageData?.getNumberOfPayments() || 0) *
+                        (mortgageData?.getPayments() || 0)
+                    )}
+                  </Title>
+                  <Space />
+                  <Title order={6}>Total Interest</Title>
+                  <Title order={1}>
+                    {dollarFormat.format(mortgageData?.getTotalInterest() || 0)}
+                  </Title>
+                </Stack>
+              </Paper>
+            )}
+
+            {loanSummaryView === LoanView.WITH_EXTRA_PAYMENTS && (
+              <Paper shadow="xs" p="md">
+                <Stack>
+                  <Title order={6}>Monthly Payments</Title>
+                  <Title order={1}>
+                    {dollarFormat.format(mortgageData?.getPayments(true) || 0)}
+                  </Title>
+                  <Space />
+                  <Title order={6}>Number of Payments</Title>
+                  <Title order={1}>{mortgageData?.getNumberOfPayments(true) || 0}</Title>
+                  <Space />
+                  <Title order={6}>Extra Payments</Title>
+                  <Title order={1}>
+                    {dollarFormat.format(
+                      mortgageData?.summary.client_extra_payments_per_period || 0
+                    )}
+                  </Title>
+                  <Space />
+                  <Title order={6}>Total Payments</Title>
+                  <Title order={1}>
+                    {dollarFormat.format(
+                      (mortgageData?.getNumberOfPayments(true) || 0) *
+                        (mortgageData?.getPayments() || 0)
+                    )}
+                  </Title>
+                  <Space />
+                  <Title order={6}>Total Interest</Title>
+                  <Title order={1}>
+                    {dollarFormat.format(_.sumBy(mortgageData?.mortgage_data, 'interest') || 0)}
+                  </Title>
+                </Stack>
+              </Paper>
+            )}
+
+            <Paper shadow="xs" p="md">
+              <Space />
+              <Title order={6}>Years to Pay Off Loan</Title>
+              <Title>{mortgageData?.getYearsToPayOffLoan()}</Title>
+            </Paper>
+          </Stack>
+        </Grid.Col>
         <Grid.Col xs={12}>
           <Table>
             <thead>
@@ -140,6 +223,7 @@ export default function App() {
                 <th>Principal</th>
                 <th>Interest</th>
                 <th>Balance</th>
+                <th>Saved Interest</th>
               </tr>
             </thead>
             <tbody>
@@ -150,6 +234,7 @@ export default function App() {
                   <td>{dollarFormat.format(row.principal)}</td>
                   <td>{dollarFormat.format(row.interest)}</td>
                   <td>{dollarFormat.format(row.balance)}</td>
+                  <td>{dollarFormat.format(row.savedInterest)}</td>
                 </tr>
               ))}
             </tbody>
@@ -160,6 +245,7 @@ export default function App() {
                 <th>Principal</th>
                 <th>Interest</th>
                 <th>Balance</th>
+                <th>Saved Interest</th>
               </tr>
             </tfoot>
           </Table>

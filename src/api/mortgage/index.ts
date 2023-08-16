@@ -1,4 +1,4 @@
-import { NPER, PMT } from '../utils/excelFormulas';
+import { CUMIPMT, IPMT, NPER, PMT } from '../utils/excelFormulas';
 import { clamp } from '../utils/numbers';
 import {
   ListOfPIAForecast,
@@ -52,12 +52,20 @@ class Mortgage implements IMortgage {
     };
   }
 
-  getPayments() {
-    return -PMT(
-      this.summary.annual_interest_rate / this.getPaymentFrequency(),
-      this.summary.term_of_loan_in_years * this.getPaymentFrequency(),
-      this.summary.loan_amount
-    );
+  getPayments(includeExtraPayments: boolean = false): number {
+    if (includeExtraPayments) {
+      return (
+        this.getPayments() +
+        this.getPIAWeeklyCashflow(1) +
+        this.summary.client_extra_payments_per_period
+      );
+    } else {
+      return -PMT(
+        this.summary.annual_interest_rate / this.getPaymentFrequency(),
+        this.summary.term_of_loan_in_years * this.getPaymentFrequency(),
+        this.summary.loan_amount
+      );
+    }
   }
 
   getPIAWeeklyCashflow(year: number = 1) {
@@ -100,6 +108,23 @@ class Mortgage implements IMortgage {
     }
   }
 
+  getTotalInterest() {
+    return -CUMIPMT(
+      this.summary.annual_interest_rate / this.getPaymentFrequency(),
+      this.summary.term_of_loan_in_years * this.getPaymentFrequency(),
+      this.summary.loan_amount,
+      1,
+      this.summary.term_of_loan_in_years * this.getPaymentFrequency(),
+      0
+    );
+  }
+
+  getYearsToPayOffLoan() {
+    return `${parseInt((this.getNumberOfPayments(true) / this.getPaymentFrequency()).toString())}.${
+      this.getNumberOfPayments(true) % this.getPaymentFrequency()
+    }`;
+  }
+
   calculateFromTerm() {
     if (!this.mortgage_data) return [];
     const mortgageTable: MortgageData[] = [];
@@ -110,19 +135,22 @@ class Mortgage implements IMortgage {
 
     while (staggerBy > 0) {
       const batch = this.mortgage_data.slice(index * perBatch, (index + 1) * perBatch);
+      let year = index + 1;
       let interest = _.sumBy(batch, 'interest');
       let principal = _.sumBy(batch, 'principal');
       let payment = _.sumBy(batch, 'payment');
       let theBalance = index > 1 ? mortgageTable[index - 1].balance : currentBalance;
       let balance = _.round(theBalance - principal, 2);
+      let savedInterest = _.sumBy(batch, 'savedInterest');
 
       mortgageTable.push({
-        year: index + 1,
+        year,
         balance,
         interest,
         principal,
         previousBalance: currentBalance,
         payment,
+        savedInterest,
       });
 
       currentBalance = balance;
@@ -138,23 +166,32 @@ class Mortgage implements IMortgage {
     let index = 0;
 
     while (currentBalance > 0) {
+      let year = index + 1;
       let theBalance = index > 1 ? mortgageTable[index - 1].balance : currentBalance;
       let interest = this.getInterest(theBalance);
       let principal = this.getPrincipal(interest);
       let balance = _.round(theBalance - principal, 2);
       let payment = this.getPayments() + this.summary.client_extra_payments_per_period;
+      let savedInterest =
+        -IPMT(
+          this.summary.annual_interest_rate / this.getPaymentFrequency(),
+          year,
+          this.summary.term_of_loan_in_years * this.getPaymentFrequency(),
+          this.summary.loan_amount
+        ) - (year > this.getNumberOfPayments(true) ? 0 : interest);
 
       if (this.summary.income_generating_years[0] != 0) {
         payment += this.getPIAWeeklyCashflow(1);
       }
 
       mortgageTable.push({
-        year: index + 1,
+        year,
         interest,
         principal,
         balance,
         payment,
         previousBalance: currentBalance,
+        savedInterest,
       });
 
       currentBalance = balance;

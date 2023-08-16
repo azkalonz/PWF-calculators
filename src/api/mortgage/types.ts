@@ -23,6 +23,11 @@ export enum MortgagePaymentFrequency {
   WEEKLY = '48',
 }
 
+export enum LoanView {
+  WITHOUT_EXTRA_PAYMENTS = '1',
+  WITH_EXTRA_PAYMENTS = '2',
+}
+
 export enum MortgagePaymentType {
   PRINCIPAL_INTEREST = '1',
   INTEREST = '2',
@@ -55,4 +60,5 @@ export type MortgageData = {
   balance: number;
   year: number;
   previousBalance: number;
+  savedInterest: number;
 };
