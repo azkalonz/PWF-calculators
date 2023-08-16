@@ -11,10 +11,13 @@ import _ from 'lodash-es';
 
 interface IMortgage {
   summary: MortgageSummary;
+  mortgage_data?: MortgageData[];
 }
 
 class Mortgage implements IMortgage {
   public summary: MortgageSummary;
+  public mortgage_data?: MortgageData[] | undefined;
+
   constructor(summary: MortgageSummary) {
     this.summary = summary;
   }
@@ -89,30 +92,76 @@ class Mortgage implements IMortgage {
     );
   }
 
+  getTotalPayments() {
+    if (!this.mortgage_data) {
+      return 0;
+    } else {
+      return _.round(_.sumBy(this.mortgage_data, 'payment'), 2);
+    }
+  }
+
+  calculateFromTerm() {
+    if (!this.mortgage_data) return [];
+    const mortgageTable: MortgageData[] = [];
+    let currentBalance = this.summary.loan_amount;
+    let staggerBy = this.getNumberOfPayments(true) / this.getPaymentFrequency();
+    const perBatch = this.getPaymentFrequency();
+    let index = 0;
+
+    while (staggerBy > 0) {
+      const batch = this.mortgage_data.slice(index * perBatch, (index + 1) * perBatch);
+      let interest = _.sumBy(batch, 'interest');
+      let principal = _.sumBy(batch, 'principal');
+      let payment = _.sumBy(batch, 'payment');
+      let theBalance = index > 1 ? mortgageTable[index - 1].balance : currentBalance;
+      let balance = _.round(theBalance - principal, 2);
+
+      mortgageTable.push({
+        year: index + 1,
+        balance,
+        interest,
+        principal,
+        previousBalance: currentBalance,
+        payment,
+      });
+
+      currentBalance = balance;
+      index++;
+      staggerBy--;
+    }
+    return mortgageTable;
+  }
+
   calculate() {
-    const mortgageRow: MortgageData[] = [];
+    const mortgageTable: MortgageData[] = [];
     let currentBalance = this.summary.loan_amount;
     let index = 0;
 
     while (currentBalance > 0) {
-      let theBalance = index > 1 ? mortgageRow[index - 1].balance : currentBalance;
+      let theBalance = index > 1 ? mortgageTable[index - 1].balance : currentBalance;
       let interest = this.getInterest(theBalance);
       let principal = this.getPrincipal(interest);
       let balance = _.round(theBalance - principal, 2);
+      let payment = this.getPayments() + this.summary.client_extra_payments_per_period;
 
-      mortgageRow.push({
+      if (this.summary.income_generating_years[0] != 0) {
+        payment += this.getPIAWeeklyCashflow(1);
+      }
+
+      mortgageTable.push({
         year: index + 1,
         interest,
         principal,
         balance,
-        payment: 123,
+        payment,
         previousBalance: currentBalance,
       });
 
       currentBalance = balance;
       index++;
     }
-    return mortgageRow;
+    this.mortgage_data = mortgageTable;
+    return mortgageTable;
   }
 }
 
