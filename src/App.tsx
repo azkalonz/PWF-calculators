@@ -1,10 +1,5 @@
-import { ThemeProvider } from './ThemeProvider';
-import { Welcome } from './Welcome/Welcome';
+import Calculators from './Calculators';
 
 export default function App() {
-  return (
-    <ThemeProvider>
-      <Welcome />
-    </ThemeProvider>
-  );
+  return <Calculators />;
 }
