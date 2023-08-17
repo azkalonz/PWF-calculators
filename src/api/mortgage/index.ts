@@ -142,6 +142,7 @@ class Mortgage implements IMortgage {
       let theBalance = index > 1 ? mortgageTable[index - 1].balance : currentBalance;
       let balance = _.round(theBalance - principal, 2);
       let savedInterest = _.sumBy(batch, 'savedInterest');
+      savedInterest = clamp(savedInterest, 0,  savedInterest);
 
       mortgageTable.push({
         year,
@@ -179,6 +180,7 @@ class Mortgage implements IMortgage {
           this.summary.term_of_loan_in_years * this.getPaymentFrequency(),
           this.summary.loan_amount
         ) - (year > this.getNumberOfPayments(true) ? 0 : interest);
+      savedInterest = clamp(savedInterest, 0,  savedInterest);
 
       if (this.summary.income_generating_years[0] != 0) {
         payment += this.getPIAWeeklyCashflow(1);
