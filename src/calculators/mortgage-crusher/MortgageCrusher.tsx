@@ -233,7 +233,7 @@ export default function App() {
                       <Title order={1}>
                         {dollarFormat.format(
                           (mortgageData?.getNumberOfPayments(true) || 0) *
-                          (mortgageData?.getPayments() || 0)
+                          (mortgageData?.getPayments(true) || 0)
                         )}
                       </Title>
                       <Space />
